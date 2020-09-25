@@ -1,0 +1,26 @@
+{
+    "name": "tingyu/http_request",
+    "description": "http客户端",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "tingyu",
+            "email": "qiuyix@sina.cn"
+        }
+    ],
+    "minimum-stability": "dev",
+    "extra":{
+        "branch-alias":{
+            "dev-develop":"dev"
+        }
+    },
+    "require": {
+        "php": "7.3.*"
+    },
+    "autoload": {
+        "psr-4": {
+            "tingyu\\HttpRequest\\": "src/"
+        }
+    }
+}
