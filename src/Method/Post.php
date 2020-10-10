@@ -5,14 +5,18 @@ namespace tingyu\HttpRequest\Method;
 
 
 use tingyu\HttpRequest\HttpClient;
+use function Couchbase\defaultDecoder;
 
-class RequestPost extends HttpClient implements IMethod
+class Post extends HttpClient implements IMethod
 {
-    public function request($requestUrl, $body = [])
+    public function request($requestUrl, $param = null)
     {
-        $this->requestUrl = $requestUrl;
+        $this->setRequestUrl($requestUrl, $param);
 
-        $this->requestBody = array_merge($this->requestFile, $body);
+        if (!is_null($this->request)) {
+            $this->requestBody = $this->request->getData();
+            $this->setRequestHeader('Content-Type', $this->request->getContentType());
+        }
 
         curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, "POST");
 
@@ -27,13 +31,15 @@ class RequestPost extends HttpClient implements IMethod
 
         $this->responseBody = curl_exec($this->handler);
 
-        $this->requestFile = [];
-
         $this->responseStatusCode = curl_getinfo($this->handler, CURLINFO_HTTP_CODE);
 
         curl_close($this->handler);
 
-        return $this->responseBody;
+        if ($this->response == null) {
+            return $this->responseBody;
+        } else {
+            return $this->response->parse($this->responseBody);
+        }
     }
 
 }

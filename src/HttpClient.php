@@ -1,8 +1,18 @@
 <?php
 namespace tingyu\HttpRequest;
 
+use tingyu\HttpRequest\Request\IRequest;
+use tingyu\HttpRequest\Request\RequestArray;
+use tingyu\HttpRequest\Response\IResponse;
+
 class HttpClient
 {
+    // 请求方式
+    protected $request;
+
+    // 响应方式
+    protected $response;
+
     // curl 句柄
     protected $handler;
 
@@ -36,21 +46,22 @@ class HttpClient
     // 请求头 array
     private $requestHeader;
 
+    // https 请求是否进行验证
     private $requestSslVerifyPeer;
 
     // 响应头信息
-    public $responseHeader;
+    private $responseHeader;
 
     // 响应结果
     protected $responseBody;
 
     // 响应cookie信息 数组
-    public $responseCookies;
+    private $responseCookies;
 
     // 响应的状态码信息
-    public $responseStatusCode;
+    protected $responseStatusCode;
 
-    public function __construct()
+    public function __construct(IRequest $request = null, IResponse $response = null)
     {
         if (!extension_loaded('curl')) {
             throw new \Exception('curl 扩展没有安装');
@@ -69,6 +80,12 @@ class HttpClient
 
         $this->handler = $handler;
 
+        // 注入请求体处理类
+        $this->request = $request;
+
+        // 注入响应体处理类
+        $this->response = $response;
+
         $this->initialize();
     }
 
@@ -81,13 +98,13 @@ class HttpClient
         // 设置默认的请求配置
         $curlVersion = curl_version();
         $userAgent = "(".PHP_OS.") PHP/".PHP_VERSION." CURL/".$curlVersion['version'];
-        $this->setUserAgent($userAgent);
+        $this->setRequestUserAgent($userAgent);
 
         // 设置某人的超时时间
-        $this->setTimeOut(30);
+        $this->setRequestTimeOut(30);
 
         // 设置默认是否校验https证书
-        $this->setSslVerifyPeer(false);
+        $this->setRequestSslVerifyPeer(false);
 
         // 设置请求结果不直接输出，而是返回数据
         curl_setopt($this->handler, CURLOPT_RETURNTRANSFER, true);
@@ -96,13 +113,39 @@ class HttpClient
         curl_setopt($this->handler, CURLOPT_HEADERFUNCTION, [$this, 'dealResponseHeader']);
     }
 
+    /**
+     * 请求地址处理
+     * @param $param
+     */
+    protected function setRequestUrl($requestUrl, $param)
+    {
+        if (is_array($param) && !empty($param)) {
+            $this->requestBody = $param;
+            $queryParam = http_build_query($param);
+        } elseif (is_string($param) && $param != '') {
+            $queryParam = $param;
+            $this->requestBody[] = $param;
+        }
+
+        if (isset($queryParam)) {
+            if (strpos($requestUrl, '?') === false) {
+                $requestUrl .= '?' . $queryParam;
+            } else {
+                $requestUrl .= '&' . $queryParam;
+            }
+        }
+
+        $this->requestUrl = $requestUrl;
+    }
+
 
     /**
      * 设置请求携带的cookie值
      * @param string $key
      * @param string $value
+     * @throws \Exception
      */
-    public function setCookie($key, $value)
+    public function setRequestCookie($key, $value)
     {
         if (!is_string($key) || !is_string($value)) {
             throw new \Exception('cookie的设置值非法');
@@ -123,7 +166,7 @@ class HttpClient
      * @param string $sslKeyPath ssl密钥结对路径
      * @throws \Exception
      */
-    public function setCertificate($sslCertPath, $sslKeyPath)
+    public function setRequestCertificate($sslCertPath, $sslKeyPath)
     {
         if (strrchr($sslCertPath, '.pem') !== '.pem') {
             throw new \Exception('SSL CERT证书不是pem格式的文件');
@@ -153,7 +196,7 @@ class HttpClient
      * @param string $cacertPemPath  当进行证书校验的时候，应该加载证书的地址，证书可从https://curl.haxx.se/ca/cacert.pem下载
      * @throws \Exception
      */
-    public function setSslVerifyPeer($bool, $cacertPemPath = '')
+    public function setRequestSslVerifyPeer($bool, $cacertPemPath = '')
     {
         if ($bool) {
             if (!is_string($cacertPemPath) || $cacertPemPath == '') {
@@ -177,7 +220,7 @@ class HttpClient
      * 设置请求标识 UA
      * @param string $userAgent
      */
-    public function setUserAgent($userAgent)
+    public function setRequestUserAgent($userAgent)
     {
         if (!is_string($userAgent)) {
             throw new \Exception('UserAgent值类型非法');
@@ -193,7 +236,7 @@ class HttpClient
      * @param int $second 超时时间（秒）
      * @throws \Exception
      */
-    public function setTimeOut($second)
+    public function setRequestTimeOut($second)
     {
         if (!is_int($second) || $second < 0) {
             throw new \Exception('设置超时时间不合法');
@@ -208,14 +251,14 @@ class HttpClient
      * @param int $msSecond
      * @throws \Exception
      */
-    public function setTimeoutMs($msSecond)
+    public function setRequestTimeoutMs($msSecond)
     {
         if (!is_int($msSecond) || $msSecond < 0) {
             throw new \Exception('设置毫秒超时时间不合法');
         }
 
         $this->requestMsSecond = $msSecond;
-        curl_setoptL($this->handler, CURLOPT_TIMEOUT_MS, $msSecond);
+        curl_setopt($this->handler, CURLOPT_TIMEOUT_MS, $msSecond);
     }
 
     /**
@@ -223,7 +266,7 @@ class HttpClient
      * @param string $proxyHost  代理地址
      * @param int $proxyPort    代理端口
      */
-    public function setProxy($proxyHost, $proxyPort)
+    public function setRequestProxy($proxyHost, $proxyPort)
     {
         curl_setopt($this->handler,CURLOPT_PROXY, $proxyHost);
         curl_setopt($this->handler,CURLOPT_PROXYPORT, $proxyPort);
@@ -235,7 +278,7 @@ class HttpClient
      * @param string $value 值 text/html; charset=utf-8
      * @throws \Exception
      */
-    public function setHeader($key, $value)
+    public function setRequestHeader($key, $value)
     {
         if (!is_string($key) || !is_string($value)) {
             throw new \Exception('header键或值类型错粗');
@@ -279,6 +322,59 @@ class HttpClient
     }
 
     /**
+     * 获取响应头部信息
+     * @param bool $isString true 字符串形式返回， false 数组形式返回（默认值）
+     * @return array|string
+     */
+    public function getResponseHeader($isString = false) {
+        $this->responseHeader = trim($this->responseHeader, PHP_EOL);
+        if ($isString) {
+            return $this->responseHeader;
+        }
+
+        $result = [];
+        $header = explode(PHP_EOL, $this->responseHeader);
+        foreach ($header as $value) {
+            if ($value != '' && strpos($value, ":")) {
+                $value = explode(': ', $value);
+                if (array_key_exists($value[0], $result)) {
+                    if (is_array($result[$value[0]])) {
+                        $result[$value[0]][] = $value[1];
+                    } else {
+                        $oldValue = $result[$value[0]];
+                        $result[$value[0]] = [
+                            $oldValue,
+                            $value[1]
+                        ];
+                    }
+                } else {
+                    $result[$value[0]] = $value[1];
+                }
+            } else {
+                $result[] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * 获取响应cookie信息
+     * @return mixed
+     */
+    public function getResponseCookie() {
+        return $this->responseCookies;
+    }
+
+    /**
+     * 获取原始响应内容
+     * @return mixed
+     */
+    public function getResponseBody() {
+        return $this->responseBody;
+    }
+
+    /**
      * 构建cookie
      */
     private function buildCookie()
@@ -293,31 +389,6 @@ class HttpClient
 
             curl_setopt($this->handler, CURLOPT_COOKIE, $cookie);
         }
-    }
-
-    /**
-     * 添加上传文件
-     * @param $filePath
-     * @param $field
-     * @param string $mimeType
-     */
-    public function setUploadFile($field, $filePath, $mimeType = '')
-    {
-        $filePath = trim($filePath);
-        if ($filePath == '') {
-            throw new \Exception('请传入文件绝对路径');
-        }
-
-        if (!file_exists($filePath)) {
-            throw new \Exception('文件资源不存在');
-        }
-
-        if ($field == '') {
-            throw new \Exception('字段名不能为空');
-        }
-
-        $info = pathinfo($filePath);
-        $this->requestFile[$field] = new \CURLFile($filePath, $mimeType, $info['basename']);
     }
 
     /**

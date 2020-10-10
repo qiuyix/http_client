@@ -6,9 +6,9 @@ interface IMethod
     /**
      * 发起请求
      * @param string $requestUrl  请求地址
-     * @param string|array|object $body  请求提
+     * @param string|array $param  地址携带参数
      * @return mixed
      */
-    function request($requestUrl, $body);
+    function request($requestUrl, $param);
 
 }
