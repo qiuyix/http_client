@@ -223,7 +223,7 @@ abstract class HttpClient
         }
 
         $this->requestMsSecond = $msSecond;
-        curl_setoptL($this->handler, CURLOPT_TIMEOUT_MS, $msSecond);
+        curl_setopt($this->handler, CURLOPT_TIMEOUT_MS, $msSecond);
     }
 
     /**
