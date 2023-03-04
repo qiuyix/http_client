@@ -1,7 +1,7 @@
 <?php
 namespace tingyu\HttpRequest;
 
-class HttpClient
+abstract class HttpClient
 {
     // curl 句柄
     protected $handler;
@@ -352,6 +352,14 @@ class HttpClient
 
         return strlen($header);
     }
+
+    /**
+     * 发起请求
+     * @param string $uri  请求地址
+     * @param string|array|object $data  请求提
+     * @return mixed
+     */
+    abstract function do(string $uri, $data);
 
     public function __destruct()
     {

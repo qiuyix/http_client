@@ -6,13 +6,13 @@ namespace tingyu\HttpRequest\Method;
 
 use tingyu\HttpRequest\HttpClient;
 
-class RequestPost extends HttpClient implements IMethod
+class Post extends HttpClient
 {
-    public function request($requestUrl, $body = [])
+    public function do(string $uri, $data = [])
     {
-        $this->requestUrl = $requestUrl;
+        $this->requestUrl = $uri;
 
-        $this->requestBody = array_merge($this->requestFile, $body);
+        $this->requestBody = array_merge($this->requestBody, $data);
 
         curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, "POST");
 

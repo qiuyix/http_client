@@ -6,15 +6,15 @@ namespace tingyu\HttpRequest\Method;
 
 use tingyu\HttpRequest\HttpClient;
 
-class RequestDelete extends HttpClient implements IMethod
+class Put extends HttpClient
 {
-    public function request($requestUrl, $body = [])
+    public function do(string $uri, $data = [])
     {
-        $this->requestUrl = $requestUrl;
+        $this->requestUrl = $uri;
 
-        $this->requestBody = array_merge($this->requestFile, $body);
+        $this->requestBody = array_merge($this->requestBody, $data);
 
-        curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, "DELETE");
+        curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, "PUT");
 
         curl_setopt($this->handler, CURLOPT_URL, $this->requestUrl);
 
@@ -30,5 +30,4 @@ class RequestDelete extends HttpClient implements IMethod
 
         return $this->responseBody;
     }
-
 }
