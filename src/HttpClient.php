@@ -36,7 +36,11 @@ abstract class HttpClient
     // 请求头 array
     private $requestHeader;
 
+    // 是否开启https证书请求
     private $requestSslVerifyPeer;
+
+    // https证书存放路径
+    private $requestSslCaCertFile;
 
     // 响应头信息
     public $responseHeader;
@@ -50,6 +54,9 @@ abstract class HttpClient
     // 响应的状态码信息
     public $responseStatusCode;
 
+    /**
+     * @throws \Exception
+     */
     public function __construct()
     {
         if (!extension_loaded('curl')) {
@@ -87,7 +94,7 @@ abstract class HttpClient
         $this->setTimeOut(30);
 
         // 设置默认是否校验https证书
-        $this->setSslVerifyPeer(false);
+        $this->setSslVerifyPeer('');
 
         // 设置请求结果不直接输出，而是返回数据
         curl_setopt($this->handler, CURLOPT_RETURNTRANSFER, true);
@@ -149,27 +156,28 @@ abstract class HttpClient
 
     /**
      * 设置https请求的时候是否进行证书校验
-     * @param bool $bool
-     * @param string $cacertPemPath  当进行证书校验的时候，应该加载证书的地址，证书可从https://curl.haxx.se/ca/cacert.pem下载
+     * @param string $caCertPemFile  当进行证书校验的时候，应该加载证书的地址，证书可从https://curl.haxx.se/ca/cacert.pem下载
      * @throws \Exception
      */
-    public function setSslVerifyPeer($bool, $cacertPemPath = '')
+    public function setSslVerifyPeer(string $caCertPemFile)
     {
-        if ($bool) {
-            if (!is_string($cacertPemPath) || $cacertPemPath == '') {
-                throw new \Exception('ssl证书地址格式不正确');
-            }
+        $isVerifyPeer = false;
 
-            if (!file_exists($cacertPemPath)) {
+        if (!empty($caCertPemFile)) {
+
+            if (!file_exists($caCertPemFile)) {
                 throw new \Exception('ssl证书文件不存在');
+            } else {
+                $this->requestSslCaCertFile = $caCertPemFile;
+                $isVerifyPeer = true;
             }
         }
 
-        $this->requestSslVerifyPeer = $bool;
-        curl_setopt($this->handler,CURLOPT_SSL_VERIFYPEER, $bool);
-        curl_setopt($this->handler, CURLOPT_SSL_VERIFYHOST, $bool);
-        if ($bool) {
-            curl_setopt($this->handler, CURLOPT_CAINFO, $cacertPemPath);
+        $this->requestSslVerifyPeer = $isVerifyPeer;
+        curl_setopt($this->handler,CURLOPT_SSL_VERIFYPEER, $isVerifyPeer);
+        curl_setopt($this->handler, CURLOPT_SSL_VERIFYHOST, $isVerifyPeer);
+        if ($isVerifyPeer) {
+            curl_setopt($this->handler, CURLOPT_CAINFO, $this->requestSslCaCertFile);
         }
     }
 
