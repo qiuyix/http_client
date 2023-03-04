@@ -8,13 +8,16 @@ use tingyu\HttpRequest\HttpClient;
 
 class Put extends HttpClient
 {
+    private static $method = "PUT";
+
     public function do(string $uri, $data = [])
     {
         $this->requestUrl = $uri;
+        $this->requestMethod = self::$method;
 
         $this->requestBody = array_merge($this->requestBody, $data);
 
-        curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, "PUT");
+        curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, $this->requestMethod);
 
         curl_setopt($this->handler, CURLOPT_URL, $this->requestUrl);
 

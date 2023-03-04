@@ -24,6 +24,9 @@ abstract class HttpClient
     // 请求body体
     protected $requestBody;
 
+    // 请求的方法
+    protected $requestMethod;
+
     // 请求浏览器标识
     private $requestUserAgent;
 

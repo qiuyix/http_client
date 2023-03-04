@@ -8,6 +8,8 @@ use tingyu\HttpRequest\HttpClient;
 
 class Get extends HttpClient
 {
+    private static $method = "GET";
+
     public function do(string $uri, $data)
     {
         if (is_array($data) && !empty($data)) {
@@ -27,6 +29,7 @@ class Get extends HttpClient
         }
 
         $this->requestUrl = $uri;
+        $this->requestMethod = self::$method;
 
         curl_setopt($this->handler, CURLOPT_URL, $this->requestUrl);
 
