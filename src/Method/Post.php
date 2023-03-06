@@ -5,6 +5,7 @@ namespace tingyu\HttpRequest\Method;
 
 
 use tingyu\HttpRequest\HttpClient;
+use tingyu\HttpRequest\Util\Json;
 
 class Post extends HttpClient
 {
@@ -15,7 +16,14 @@ class Post extends HttpClient
         $this->requestUrl = $uri;
         $this->requestMethod = self::$method;
 
-        $this->requestBody = array_merge($this->requestBody, $data);
+        if (is_array($data) || is_object($data)) {
+            $this->requestBody = http_build_query($data);
+        } else if (Json::IsJsonStr($data)) {
+            $this->setHeader("content-type", "content-type: application/json;charset=UTF-8");
+            $this->requestBody = $data;
+        } else {
+            $this->requestBody = $data;
+        }
 
         curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, $this->requestMethod);
 
@@ -35,6 +43,8 @@ class Post extends HttpClient
         $this->responseStatusCode = curl_getinfo($this->handler, CURLINFO_HTTP_CODE);
 
         curl_close($this->handler);
+
+        // todo 记录日志信息
 
         return $this->responseBody;
     }

@@ -39,6 +39,8 @@ class Get extends HttpClient
 
         curl_close($this->handler);
 
+        // todo 记录日志信息
+
         return $this->responseBody;
     }
 

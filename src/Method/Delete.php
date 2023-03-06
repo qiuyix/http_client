@@ -15,7 +15,12 @@ class Delete extends HttpClient
         $this->requestUrl = $uri;
         $this->requestMethod = self::$method;
 
-        $this->requestBody = array_merge($this->requestBody, $data);
+        $this->setHeader("content-type", "content-type: application/json;charset=UTF-8");
+        if (is_array($data) || is_object($data)) {
+            $this->requestBody = json_encode($data);
+        } else {
+            $this->requestBody = $data;
+        }
 
         curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, $this->requestMethod);
 
@@ -30,6 +35,8 @@ class Delete extends HttpClient
         $this->responseStatusCode = curl_getinfo($this->handler, CURLINFO_HTTP_CODE);
 
         curl_close($this->handler);
+
+        // todo 记录日志信息
 
         return $this->responseBody;
     }

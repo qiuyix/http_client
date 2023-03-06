@@ -6,6 +6,9 @@ namespace tingyu\HttpRequest\Method;
 
 use tingyu\HttpRequest\HttpClient;
 
+/**
+ * @deprecated
+ */
 class Patch  extends HttpClient
 {
     private static $method = "PATCH";
@@ -28,6 +31,8 @@ class Patch  extends HttpClient
         $this->responseStatusCode = curl_getinfo($this->handler, CURLINFO_HTTP_CODE);
 
         curl_close($this->handler);
+
+        // todo 记录日志信息
 
         return $this->responseBody;
     }
