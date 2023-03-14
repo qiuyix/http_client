@@ -39,6 +39,9 @@ class Get extends HttpClient
 
         $this->responseStatusCode = curl_getinfo($this->handler, CURLINFO_HTTP_CODE);
 
+        $this->errNo = curl_errno($this->handler);
+        $this->errMsg = curl_error($this->handler);
+
         curl_close($this->handler);
 
         // todo 记录日志信息

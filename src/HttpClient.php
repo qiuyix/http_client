@@ -109,9 +109,7 @@ abstract class HttpClient
         $this->buildSslVerifyPeer();
         $this->buildUserAgent();
         $this->buildRequestTimeout();
-        $this->buildCookie();
         $this->buildHeader();
-        $this->buildUserAgent();
         $this->buildProxy();
 
         // 设置请求结果不直接输出，而是返回数据
@@ -214,9 +212,7 @@ abstract class HttpClient
         if (!is_string($userAgent)) {
             throw new \Exception('UserAgent值类型非法');
         }
-
         $this->requestUserAgent = $userAgent;
-
         return $this;
     }
 
@@ -234,7 +230,7 @@ abstract class HttpClient
             throw new \Exception("超时时间：秒 值非法");
         }
 
-        if (is_int($msSecond) || $msSecond < 0) {
+        if (!is_int($msSecond) || $msSecond < 0) {
             throw new \Exception("超时时间：毫秒 值非法");
         }
 
@@ -281,7 +277,6 @@ abstract class HttpClient
      */
     public function getErrNo()
     {
-        $this->errNo = curl_errno($this->handler);
         return $this->errNo;
     }
 
@@ -291,7 +286,6 @@ abstract class HttpClient
      */
     public function getErrMsg()
     {
-        $this->errMsg = curl_error($this->handler);
         return $this->errMsg;
     }
 
@@ -395,7 +389,7 @@ abstract class HttpClient
             $cookie .= "{$key}={$value};";
         }
 
-        curl_setopt($this->handler, CURLOPT_COOKIE, $cookie);
+        curl_setopt($this->handler, CURLOPT_COOKIE, rtrim($cookie, ';'));
     }
 
     /**
@@ -408,8 +402,8 @@ abstract class HttpClient
             return;
         }
 
-        curl_setopt($this->handler, CURLOPT_PROXY, $$this->proxy['host']);
-        curl_setopt($this->handler, CURLOPT_PROXYPORT, $$this->proxy['port']);
+        curl_setopt($this->handler, CURLOPT_PROXY, $this->proxy['host']);
+        curl_setopt($this->handler, CURLOPT_PROXYPORT, $this->proxy['port']);
     }
 
 
@@ -482,10 +476,10 @@ abstract class HttpClient
     }
 
 
-    public function __toString()
-    {
-        // 处理请求日志的格式化输出
-    }
+//    public function __toString()
+//    {
+//        // 处理请求日志的格式化输出
+//    }
 
 
     public function __destruct()
