@@ -73,7 +73,7 @@ abstract class HttpClient
     // 响应的状态码信息
     public $responseStatusCode;
 
-    protected $requestSslCert;
+    private $requestSslCert;
 
     private $proxy;
 
@@ -335,7 +335,7 @@ abstract class HttpClient
 
     private function buildSslCert()
     {
-        if (!array_key_exists('key', $this->requestSslCert) && !array_key_exists('cert', $this->requestSslCert)) {
+        if (empty($this->requestSslCert)) {
             return;
         }
         curl_setopt($this->handler, CURLOPT_SSLCERTTYPE, 'PEM');
@@ -370,24 +370,26 @@ abstract class HttpClient
      */
     private function buildCookie()
     {
+        if (empty($this->requestCookies)) {
+            return;
+        }
+
         $cookie = '';
         foreach ($this->requestCookies as $key => $value) {
             $cookie .= "{$key}={$value};";
         }
 
-        if ($cookie != '') {
-            $cookie = rtrim($cookie, ';');
-
-            curl_setopt($this->handler, CURLOPT_COOKIE, $cookie);
-        }
+        curl_setopt($this->handler, CURLOPT_COOKIE, $cookie);
     }
 
     private function buildProxy()
     {
-        if (array_key_exists('host', $this->proxy) && array_key_exists('port', $this->proxy)) {
-            curl_setopt($this->handler, CURLOPT_PROXY, $$this->proxy['host']);
-            curl_setopt($this->handler, CURLOPT_PROXYPORT, $$this->proxy['port']);
+        if (empty($this->proxy)) {
+            return;
         }
+
+        curl_setopt($this->handler, CURLOPT_PROXY, $$this->proxy['host']);
+        curl_setopt($this->handler, CURLOPT_PROXYPORT, $$this->proxy['port']);
     }
 
 
@@ -396,6 +398,10 @@ abstract class HttpClient
      */
     private function buildHeader()
     {
+        if (empty($this->requestHeader)) {
+            return;
+        }
+
         $header = [];
         foreach ($this->requestHeader as $key => $value) {
             $header[] = "{$key}:{$value}";
