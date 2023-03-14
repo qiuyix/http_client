@@ -52,14 +52,15 @@ abstract class HttpClient
     // 请求头 array
     private $requestHeader;
 
-    // 是否开启https证书请求
-    private $requestSslVerifyPeer;
-
     // https证书存放路径
     private $requestSslCaCert = [
         'verifyPeer' => false,
         'caCert' => '',
     ];
+
+    private $requestSslCert;
+
+    private $proxy;
 
     // 响应头信息
     public $responseHeader;
@@ -72,10 +73,6 @@ abstract class HttpClient
 
     // 响应的状态码信息
     public $responseStatusCode;
-
-    private $requestSslCert;
-
-    private $proxy;
 
     /**
      * 验证 curl 扩展有无安装，设置默认请求参数
@@ -90,11 +87,6 @@ abstract class HttpClient
         // 设置默认的请求配置
         $curlVersion = curl_version();
         $this->requestUserAgent = "(" . PHP_OS . ") PHP/" . PHP_VERSION . " CURL/" . $curlVersion['version'];
-
-        $this->requestUrl = null;
-        $this->requestBody = [];
-        $this->requestFile = [];
-
     }
 
     /**
@@ -134,6 +126,7 @@ abstract class HttpClient
      * 设置请求携带的cookie值
      * @param string $key
      * @param string $value
+     * @return HttpClient
      */
     public function setCookie($key, $value)
     {
@@ -154,6 +147,7 @@ abstract class HttpClient
      * SSL PEM 证书验证
      * @param string $sslCertPath ssl证书绝对路径
      * @param string $sslKeyPath ssl密钥结对路径
+     * @return HttpClient
      * @throws \Exception
      */
     public function setCertificate($sslCertPath, $sslKeyPath)
@@ -183,6 +177,7 @@ abstract class HttpClient
     /**
      * 设置https请求的时候是否进行证书校验
      * @param string $caCertPemFile 当进行证书校验的时候，应该加载证书的地址，证书可从https://curl.haxx.se/ca/cacert.pem下载
+     * @return HttpClient
      * @throws \Exception
      */
     public function setSslVerifyPeer(string $caCertPemFile)
@@ -211,6 +206,8 @@ abstract class HttpClient
     /**
      * 设置请求标识 UA
      * @param string $userAgent
+     * @throws \Exception
+     * @return HttpClient
      */
     public function setUserAgent($userAgent)
     {
@@ -229,6 +226,7 @@ abstract class HttpClient
      * @param int $second 超时秒超时
      * @param int $msSecond 请求毫秒超时
      * @throws \Exception
+     * @return HttpClient
      */
     public function setTimeOut($second, $msSecond = 0)
     {
@@ -242,13 +240,15 @@ abstract class HttpClient
 
         $this->requestSecond = $second;
         $this->requestMsSecond = $msSecond;
+
+        return $this;
     }
 
     /**
      * 设置代理
      * @param string $proxyHost 代理地址
      * @param int $proxyPort 代理端口
-     * @return
+     * @return HttpClient
      */
     public function setProxy($proxyHost, $proxyPort)
     {
@@ -262,6 +262,7 @@ abstract class HttpClient
      * @param string $key 键 content-type
      * @param string $value 值 text/html; charset=utf-8
      * @throws \Exception
+     * @return HttpClient
      */
     public function setHeader($key, $value)
     {
