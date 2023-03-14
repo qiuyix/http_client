@@ -7,3 +7,7 @@ use tingyu\HttpRequest\Method\Get;
 $request = new Get();
 $response = $request->do("http://localhost", ['a' => 'b', 'c'=> 'd']);
 var_dump($response);
+
+$response = \tingyu\HttpRequest\HttpClient::Get("http://localhost", ['a' => 'b', 'c'=> 'd']);
+
+var_dump($response);

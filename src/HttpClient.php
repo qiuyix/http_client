@@ -329,11 +329,19 @@ abstract class HttpClient
         $this->requestFile[$field] = new \CURLFile($filePath, $mimeType, $info['basename']);
     }
 
+    /**
+     * 构建请求 user-agent
+     * @return void
+     */
     private function buildUserAgent()
     {
         curl_setopt($this->handler, CURLOPT_USERAGENT, $this->requestUserAgent);
     }
 
+    /**
+     * 构建 ssl 证书请求
+     * @return void
+     */
     private function buildSslCert()
     {
         if (empty($this->requestSslCert)) {
@@ -345,7 +353,10 @@ abstract class HttpClient
         curl_setopt($this->handler, CURLOPT_SSLKEY, $this->requestSslCert['key']);
     }
 
-
+    /**
+     * 构建 https 请求验证证书
+     * @return void
+     */
     private function buildSslVerifyPeer()
     {
         curl_setopt($this->handler, CURLOPT_SSL_VERIFYPEER, $this->requestSslCaCert['verifyPeer']);
@@ -355,7 +366,10 @@ abstract class HttpClient
         }
     }
 
-
+    /**
+     * 构建请求超时
+     * @return void
+     */
     private function buildRequestTimeout()
     {
         if ($this->requestSecond != 0) {
@@ -367,7 +381,8 @@ abstract class HttpClient
     }
 
     /**
-     * 构建cookie
+     * 构建请求 cookie
+     * @return void
      */
     private function buildCookie()
     {
@@ -383,6 +398,10 @@ abstract class HttpClient
         curl_setopt($this->handler, CURLOPT_COOKIE, $cookie);
     }
 
+    /**
+     * 构建代理请求
+     * @return void
+     */
     private function buildProxy()
     {
         if (empty($this->proxy)) {
@@ -395,7 +414,8 @@ abstract class HttpClient
 
 
     /**
-     * 构建header
+     * 构建 header 请求头
+     * @return void
      */
     private function buildHeader()
     {
@@ -449,17 +469,13 @@ abstract class HttpClient
     {
         switch (ucfirst($method)) {
             case 'Post':
-                (new Post())->do(...$args);
-                break;
+                return (new Post())->do(...$args);
             case 'Get':
-                (new Get())->do(...$args);
-                break;
+                return (new Get())->do(...$args);
             case 'Put':
-                (new Put())->do(...$args);
-                break;
+                return (new Put())->do(...$args);
             case 'Delete':
-                (new Delete())->do(...$args);
-                break;
+                return (new Delete())->do(...$args);
             default:
                 throw new \Exception("未支持的类型");
         }
