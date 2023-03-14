@@ -58,8 +58,10 @@ abstract class HttpClient
         'caCert' => '',
     ];
 
+    // 证书请求
     private $requestSslCert;
 
+    // 代理信息
     private $proxy;
 
     // 响应头信息
@@ -97,8 +99,6 @@ abstract class HttpClient
     {
         $handler = curl_init();
         if ($handler === false) {
-            $this->getErrNo();
-            $this->getErrMsg();
             throw new \Exception('初始化curl错误');
         }
 
@@ -114,7 +114,6 @@ abstract class HttpClient
 
         // 设置请求结果不直接输出，而是返回数据
         curl_setopt($this->handler, CURLOPT_RETURNTRANSFER, true);
-
         // 获取响应头部及响应的cookie
         curl_setopt($this->handler, CURLOPT_HEADERFUNCTION, [$this, 'dealResponseHeader']);
     }
@@ -299,6 +298,35 @@ abstract class HttpClient
     }
 
     /**
+     * 处理响应的header头部回调函数
+     * 设置一个回调函数，这个函数有两个参数，第一个是cURL的资源句柄，第二个是输出的header数据。header数据的输出必须依赖这个函数，返回已写入的数据大小。
+     * @param resource $handler curl资源句柄
+     * @param string $header 响应的头部信息
+     * @return int 返回响应头部的长度
+     */
+    public function dealResponseHeader($handler, $header)
+    {
+        // 获取头部信息
+        $this->responseHeader .= $header;
+
+        // 解析响应的cookie信息
+        if (preg_match('/^Set-Cookie:\s*([^=]+)=([^;]+)/mi', $header, $cookie) === 1) {
+            $this->responseCookies[$cookie[1]] = trim($cookie[2], " \n\r\t\0\x0B");
+        }
+
+        return strlen($header);
+    }
+
+    /**
+     * 发起请求
+     * @param string $uri 请求地址
+     * @param string|array|object $data 请求提
+     * @return mixed
+     */
+    abstract function do(string $uri, $data);
+
+
+    /**
      * 添加上传文件
      * @param $filePath
      * @param $field
@@ -425,33 +453,6 @@ abstract class HttpClient
         curl_setopt($this->handler, CURLOPT_HTTPHEADER, $header);
     }
 
-    /**
-     * 处理响应的header头部回调函数
-     * 设置一个回调函数，这个函数有两个参数，第一个是cURL的资源句柄，第二个是输出的header数据。header数据的输出必须依赖这个函数，返回已写入的数据大小。
-     * @param resource $handler curl资源句柄
-     * @param string $header 响应的头部信息
-     * @return int 返回响应头部的长度
-     */
-    public function dealResponseHeader($handler, $header)
-    {
-        // 获取头部信息
-        $this->responseHeader .= $header;
-
-        // 解析响应的cookie信息
-        if (preg_match('/^Set-Cookie:\s*([^=]+)=([^;]+)/mi', $header, $cookie) === 1) {
-            $this->responseCookies[$cookie[1]] = trim($cookie[2], " \n\r\t\0\x0B");
-        }
-
-        return strlen($header);
-    }
-
-    /**
-     * 发起请求
-     * @param string $uri 请求地址
-     * @param string|array|object $data 请求提
-     * @return mixed
-     */
-    abstract function do(string $uri, $data);
 
     /**
      * @param $method
