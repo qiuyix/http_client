@@ -28,6 +28,8 @@ class Get extends HttpClient
             }
         }
 
+        $this->initialize();
+
         $this->requestUrl = $uri;
         $this->requestMethod = self::$method;
 

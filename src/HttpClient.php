@@ -1,4 +1,5 @@
 <?php
+
 namespace tingyu\HttpRequest;
 
 use tingyu\HttpRequest\Method\Delete;
@@ -6,6 +7,13 @@ use tingyu\HttpRequest\Method\Get;
 use tingyu\HttpRequest\Method\Post;
 use tingyu\HttpRequest\Method\Put;
 
+/**
+ * @method static Get($uri, $data)
+ * @method static Post($uri, $data)
+ * @method static Put($uri, $data)
+ * @method static Delete($uri, $data)
+ * @method static UploadFile($uri, $data)
+ */
 abstract class HttpClient
 {
     // curl 句柄
@@ -36,7 +44,7 @@ abstract class HttpClient
     private $requestUserAgent;
 
     // 请求超时时间
-    private $requestSecond;
+    private $requestSecond = 30;
 
     // 请求超时时间 毫秒
     private $requestMsSecond;
@@ -48,7 +56,10 @@ abstract class HttpClient
     private $requestSslVerifyPeer;
 
     // https证书存放路径
-    private $requestSslCaCertFile;
+    private $requestSslCaCert = [
+        'verifyPeer' => false,
+        'caCert' => '',
+    ];
 
     // 响应头信息
     public $responseHeader;
@@ -62,7 +73,12 @@ abstract class HttpClient
     // 响应的状态码信息
     public $responseStatusCode;
 
+    protected $requestSslCert;
+
+    private $proxy;
+
     /**
+     * 验证 curl 扩展有无安装，设置默认请求参数
      * @throws \Exception
      */
     public function __construct()
@@ -71,6 +87,22 @@ abstract class HttpClient
             throw new \Exception('curl 扩展没有安装');
         }
 
+        // 设置默认的请求配置
+        $curlVersion = curl_version();
+        $this->requestUserAgent = "(" . PHP_OS . ") PHP/" . PHP_VERSION . " CURL/" . $curlVersion['version'];
+
+        $this->requestUrl = null;
+        $this->requestBody = [];
+        $this->requestFile = [];
+
+    }
+
+    /**
+     * curl 的初始化设置
+     * @throws \Exception
+     */
+    protected function initialize()
+    {
         $handler = curl_init();
         if ($handler === false) {
             $this->getErrNo();
@@ -78,31 +110,17 @@ abstract class HttpClient
             throw new \Exception('初始化curl错误');
         }
 
-        $this->requestUrl = null;
-        $this->requestBody = [];
-        $this->requestFile = [];
-
         $this->handler = $handler;
 
-        $this->initialize();
-    }
-
-    /**
-     * 初始花参数
-     * @throws \Exception
-     */
-    private function initialize()
-    {
-        // 设置默认的请求配置
-        $curlVersion = curl_version();
-        $userAgent = "(".PHP_OS.") PHP/".PHP_VERSION." CURL/".$curlVersion['version'];
-        $this->setUserAgent($userAgent);
-
-        // 设置某人的超时时间
-        $this->setTimeOut(30);
-
-        // 设置默认是否校验https证书
-        $this->setSslVerifyPeer('');
+        $this->buildCookie();
+        $this->buildSslCert();
+        $this->buildSslVerifyPeer();
+        $this->buildUserAgent();
+        $this->buildRequestTimeout();
+        $this->buildCookie();
+        $this->buildHeader();
+        $this->buildUserAgent();
+        $this->buildProxy();
 
         // 设置请求结果不直接输出，而是返回数据
         curl_setopt($this->handler, CURLOPT_RETURNTRANSFER, true);
@@ -128,7 +146,7 @@ abstract class HttpClient
         }
 
         $this->requestCookies[$key] = $value;
-        $this->buildCookie();
+        return $this;
     }
 
 
@@ -156,15 +174,15 @@ abstract class HttpClient
             throw new \Exception('SSL KEY证书文件不存在，请传入绝对路径');
         }
 
-        curl_setopt($this->handler,CURLOPT_SSLCERTTYPE,'PEM');
-        curl_setopt($this->handler,CURLOPT_SSLCERT, $sslCertPath);
-        curl_setopt($this->handler,CURLOPT_SSLKEYTYPE,'PEM');
-        curl_setopt($this->handler,CURLOPT_SSLKEY, $sslKeyPath);
+        $this->requestSslCert['key'] = $sslKeyPath;
+        $this->requestSslCert['cert'] = $sslCertPath;
+        return $this;
     }
+
 
     /**
      * 设置https请求的时候是否进行证书校验
-     * @param string $caCertPemFile  当进行证书校验的时候，应该加载证书的地址，证书可从https://curl.haxx.se/ca/cacert.pem下载
+     * @param string $caCertPemFile 当进行证书校验的时候，应该加载证书的地址，证书可从https://curl.haxx.se/ca/cacert.pem下载
      * @throws \Exception
      */
     public function setSslVerifyPeer(string $caCertPemFile)
@@ -181,13 +199,14 @@ abstract class HttpClient
             }
         }
 
-        $this->requestSslVerifyPeer = $isVerifyPeer;
-        curl_setopt($this->handler,CURLOPT_SSL_VERIFYPEER, $isVerifyPeer);
-        curl_setopt($this->handler, CURLOPT_SSL_VERIFYHOST, $isVerifyPeer);
-        if ($isVerifyPeer) {
-            curl_setopt($this->handler, CURLOPT_CAINFO, $this->requestSslCaCertFile);
-        }
+        $this->requestSslCaCert = [
+            'verifyPeer' => $isVerifyPeer,
+            'caCert' => $caCertPemFile,
+        ];
+
+        return $this;
     }
+
 
     /**
      * 设置请求标识 UA
@@ -201,48 +220,41 @@ abstract class HttpClient
 
         $this->requestUserAgent = $userAgent;
 
-        curl_setopt($this->handler,CURLOPT_USERAGENT, $userAgent);
+        return $this;
     }
+
 
     /**
      * 设置超时时间， 单位秒
-     * @param int $second 超时时间（秒）
+     * @param int $second 超时秒超时
+     * @param int $msSecond 请求毫秒超时
      * @throws \Exception
      */
-    public function setTimeOut($second)
+    public function setTimeOut($second, $msSecond = 0)
     {
         if (!is_int($second) || $second < 0) {
-            throw new \Exception('设置超时时间不合法');
+            throw new \Exception("超时时间：秒 值非法");
+        }
+
+        if (is_int($msSecond) || $msSecond < 0) {
+            throw new \Exception("超时时间：毫秒 值非法");
         }
 
         $this->requestSecond = $second;
-        curl_setopt($this->handler, CURLOPT_TIMEOUT, $second);
-    }
-
-    /**
-     * 设置毫秒超时时间
-     * @param int $msSecond
-     * @throws \Exception
-     */
-    public function setTimeoutMs($msSecond)
-    {
-        if (!is_int($msSecond) || $msSecond < 0) {
-            throw new \Exception('设置毫秒超时时间不合法');
-        }
-
         $this->requestMsSecond = $msSecond;
-        curl_setopt($this->handler, CURLOPT_TIMEOUT_MS, $msSecond);
     }
 
     /**
      * 设置代理
-     * @param string $proxyHost  代理地址
-     * @param int $proxyPort    代理端口
+     * @param string $proxyHost 代理地址
+     * @param int $proxyPort 代理端口
+     * @return
      */
     public function setProxy($proxyHost, $proxyPort)
     {
-        curl_setopt($this->handler,CURLOPT_PROXY, $proxyHost);
-        curl_setopt($this->handler,CURLOPT_PROXYPORT, $proxyPort);
+        $this->proxy['host'] = $proxyHost;
+        $this->proxy['port'] = $proxyPort;
+        return $this;
     }
 
     /**
@@ -253,16 +265,13 @@ abstract class HttpClient
      */
     public function setHeader($key, $value)
     {
-        if (!is_string($key) || !is_string($value)) {
-            throw new \Exception('header键或值类型错粗');
-        }
-
-        if ($key == '') {
-            throw new \Exception("header的键值不能为空");
+        if (!is_string($key) || $key == '' || !is_string($value)) {
+            throw new \Exception('请求头信息不正确');
         }
 
         $this->requestHeader[$key] = $value;
-        $this->buildHeader();
+
+        return $this;
     }
 
     /**
@@ -295,23 +304,6 @@ abstract class HttpClient
     }
 
     /**
-     * 构建cookie
-     */
-    private function buildCookie()
-    {
-        $cookie = '';
-        foreach ($this->requestCookies as $key=>$value) {
-            $cookie .= "{$key}={$value};";
-        }
-
-        if ($cookie != '') {
-            $cookie = rtrim($cookie, ';');
-
-            curl_setopt($this->handler, CURLOPT_COOKIE, $cookie);
-        }
-    }
-
-    /**
      * 添加上传文件
      * @param $filePath
      * @param $field
@@ -335,6 +327,69 @@ abstract class HttpClient
         $info = pathinfo($filePath);
         $this->requestFile[$field] = new \CURLFile($filePath, $mimeType, $info['basename']);
     }
+
+    private function buildUserAgent()
+    {
+        curl_setopt($this->handler, CURLOPT_USERAGENT, $this->requestUserAgent);
+    }
+
+    private function buildSslCert()
+    {
+        if (!array_key_exists('key', $this->requestSslCert) && !array_key_exists('cert', $this->requestSslCert)) {
+            return;
+        }
+        curl_setopt($this->handler, CURLOPT_SSLCERTTYPE, 'PEM');
+        curl_setopt($this->handler, CURLOPT_SSLCERT, $this->requestSslCert['cert']);
+        curl_setopt($this->handler, CURLOPT_SSLKEYTYPE, 'PEM');
+        curl_setopt($this->handler, CURLOPT_SSLKEY, $this->requestSslCert['key']);
+    }
+
+
+    private function buildSslVerifyPeer()
+    {
+        curl_setopt($this->handler, CURLOPT_SSL_VERIFYPEER, $this->requestSslCaCert['verifyPeer']);
+        curl_setopt($this->handler, CURLOPT_SSL_VERIFYHOST, $this->requestSslCaCert['verifyPeer']);
+        if ($this->requestSslCaCert['verifyPeer']) {
+            curl_setopt($this->handler, CURLOPT_CAINFO, $this->requestSslCaCert['caCert']);
+        }
+    }
+
+
+    private function buildRequestTimeout()
+    {
+        if ($this->requestSecond != 0) {
+            curl_setopt($this->handler, CURLOPT_TIMEOUT, $this->requestSecond);
+        }
+        if ($this->requestMsSecond != 0) {
+            curl_setopt($this->handler, CURLOPT_TIMEOUT_MS, $this->requestMsSecond);
+        }
+    }
+
+    /**
+     * 构建cookie
+     */
+    private function buildCookie()
+    {
+        $cookie = '';
+        foreach ($this->requestCookies as $key => $value) {
+            $cookie .= "{$key}={$value};";
+        }
+
+        if ($cookie != '') {
+            $cookie = rtrim($cookie, ';');
+
+            curl_setopt($this->handler, CURLOPT_COOKIE, $cookie);
+        }
+    }
+
+    private function buildProxy()
+    {
+        if (array_key_exists('host', $this->proxy) && array_key_exists('port', $this->proxy)) {
+            curl_setopt($this->handler, CURLOPT_PROXY, $$this->proxy['host']);
+            curl_setopt($this->handler, CURLOPT_PROXYPORT, $$this->proxy['port']);
+        }
+    }
+
 
     /**
      * 构建header
@@ -371,8 +426,8 @@ abstract class HttpClient
 
     /**
      * 发起请求
-     * @param string $uri  请求地址
-     * @param string|array|object $data  请求提
+     * @param string $uri 请求地址
+     * @param string|array|object $data 请求提
      * @return mixed
      */
     abstract function do(string $uri, $data);
@@ -385,7 +440,7 @@ abstract class HttpClient
      */
     public static function __callStatic($method, $args)
     {
-        switch($method) {
+        switch (ucfirst($method)) {
             case 'Post':
                 (new Post())->do(...$args);
                 break;
@@ -401,6 +456,12 @@ abstract class HttpClient
             default:
                 throw new \Exception("未支持的类型");
         }
+    }
+
+
+    public function __toString()
+    {
+        // 处理请求日志的格式化输出
     }
 
 

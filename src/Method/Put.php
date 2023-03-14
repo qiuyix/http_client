@@ -22,6 +22,8 @@ class Put extends HttpClient
             $this->requestBody = $data;
         }
 
+        $this->initialize();
+
         curl_setopt($this->handler, CURLOPT_CUSTOMREQUEST, $this->requestMethod);
 
         curl_setopt($this->handler, CURLOPT_URL, $this->requestUrl);
