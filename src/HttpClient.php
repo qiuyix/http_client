@@ -1,6 +1,11 @@
 <?php
 namespace tingyu\HttpRequest;
 
+use tingyu\HttpRequest\Method\Delete;
+use tingyu\HttpRequest\Method\Get;
+use tingyu\HttpRequest\Method\Post;
+use tingyu\HttpRequest\Method\Put;
+
 abstract class HttpClient
 {
     // curl 句柄
@@ -371,6 +376,33 @@ abstract class HttpClient
      * @return mixed
      */
     abstract function do(string $uri, $data);
+
+    /**
+     * @param $method
+     * @param $args
+     * @return void
+     * @throws \Exception
+     */
+    public static function __callStatic($method, $args)
+    {
+        switch($method) {
+            case 'Post':
+                (new Post())->do(...$args);
+                break;
+            case 'Get':
+                (new Get())->do(...$args);
+                break;
+            case 'Put':
+                (new Put())->do(...$args);
+                break;
+            case 'Delete':
+                (new Delete())->do(...$args);
+                break;
+            default:
+                throw new \Exception("未支持的类型");
+        }
+    }
+
 
     public function __destruct()
     {
